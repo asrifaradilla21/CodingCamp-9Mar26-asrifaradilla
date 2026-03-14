@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusTimer Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        .pass {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .fail {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        #results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>FocusTimer Tests</h1>
+    <div id="results"></div>
+
+    <script>
+        // Copy the FocusTimer implementation here for testing
+        const FocusTimer = {
+            remainingSeconds: 1500,
+            isRunning: false,
+            intervalId: null,
+
+            init() {
+                this.updateDisplay();
+            },
+
+            start() {
+                if (!this.isRunning) {
+                    this.isRunning = true;
+                    this.intervalId = setInterval(() => {
+                        this.tick();
+                    }, 1000);
+                }
+            },
+
+            stop() {
+                if (this.isRunning) {
+                    this.isRunning = false;
+                    if (this.intervalId !== null) {
+                        clearInterval(this.intervalId);
+                        this.intervalId = null;
+                    }
+                }
+            },
+
+            reset() {
+                this.stop();
+                this.remainingSeconds = 1500;
+                this.updateDisplay();
+            },
+
+            tick() {
+                if (this.remainingSeconds > 0) {
+                    this.remainingSeconds--;
+                    this.updateDisplay();
+                    
+                    if (this.remainingSeconds === 0) {
+                        this.stop();
+                    }
+                }
+            },
+
+            formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                const minutesStr = minutes.toString().padStart(2, '0');
+                const secsStr = secs.toString().padStart(2, '0');
+                return `${minutesStr}:${secsStr}`;
+            },
+
+            updateDisplay() {
+                if (timerDisplayEl) {
+                    timerDisplayEl.textContent = this.formatTime(this.remainingSeconds);
+                }
+            }
+        };
+
+
+        // Test runner
+        const results = document.getElementById('results');
+        let testCount = 0;
+        let passCount = 0;
+
+        function addResult(testName, passed, message = '') {
+            testCount++;
+            if (passed) passCount++;
+            
+            const div = document.createElement('div');
+            div.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            div.textContent = `${passed ? '✓' : '✗'} ${testName}${message ? ': ' + message : ''}`;
+            results.appendChild(div);
+        }
+
+        function addHeader(text) {
+            const h2 = document.createElement('h2');
+            h2.textContent = text;
+            results.appendChild(h2);
+        }
+
+        // Run tests
+        function runTests() {
+            addHeader('Initialization Tests');
+            
+            // Reset timer before tests
+            FocusTimer.remainingSeconds = 1500;
+            FocusTimer.isRunning = false;
+            if (FocusTimer.intervalId) clearInterval(FocusTimer.intervalId);
+            FocusTimer.intervalId = null;
+
+            addResult('Initializes with 1500 seconds', FocusTimer.remainingSeconds === 1500);
+            addResult('Initializes with isRunning false', FocusTimer.isRunning === false);
+            addResult('Initializes with intervalId null', FocusTimer.intervalId === null);
+
+            // Test init() updates display
+            window.timerDisplayEl = { textContent: '' };
+            FocusTimer.init();
+            addResult('init() updates display to 25:00', timerDisplayEl.textContent === '25:00');
+
+            addHeader('formatTime() Tests');
+            
+            addResult('Format 1500 seconds as 25:00', FocusTimer.formatTime(1500) === '25:00');
+            addResult('Format 0 seconds as 00:00', FocusTimer.formatTime(0) === '00:00');
+            addResult('Format 60 seconds as 01:00', FocusTimer.formatTime(60) === '01:00');
+            addResult('Format 599 seconds as 09:59', FocusTimer.formatTime(599) === '09:59');
+            addResult('Format 1 second as 00:01', FocusTimer.formatTime(1) === '00:01');
+            addResult('Format 125 seconds as 02:05', FocusTimer.formatTime(125) === '02:05');
+            addResult('Format 65 seconds as 01:05', FocusTimer.formatTime(65) === '01:05');
+            addResult('Format 5 seconds as 00:05', FocusTimer.formatTime(5) === '00:05');
+
+
+            addHeader('start() Tests');
+            
+            // Reset timer
+            FocusTimer.remainingSeconds = 1500;
+            FocusTimer.isRunning = false;
+            if (FocusTimer.intervalId) clearInterval(FocusTimer.intervalId);
+            FocusTimer.intervalId = null;
+
+            FocusTimer.start();
+            addResult('start() sets isRunning to true', FocusTimer.isRunning === true);
+            addResult('start() creates an interval', FocusTimer.intervalId !== null);
+            
+            // Test preserving remainingSeconds
+            if (FocusTimer.intervalId) clearInterval(FocusTimer.intervalId);
+            FocusTimer.isRunning = false;
+            FocusTimer.intervalId = null;
+            FocusTimer.remainingSeconds = 1200;
+            FocusTimer.start();
+            addResult('start() preserves remainingSeconds', FocusTimer.remainingSeconds === 1200);
+            
+            // Test not creating multiple intervals
+            const firstIntervalId = FocusTimer.intervalId;
+            FocusTimer.start();
+            addResult('start() does not create multiple intervals', FocusTimer.intervalId === firstIntervalId);
+            
+            // Clean up
+            if (FocusTimer.intervalId) clearInterval(FocusTimer.intervalId);
+            FocusTimer.intervalId = null;
+            FocusTimer.isRunning = false;
+
+            addHeader('stop() Tests');
+            
+            // Reset and start timer
+            FocusTimer.remainingSeconds = 1500;
+            FocusTimer.start();
+            FocusTimer.stop();
+            addResult('stop() sets isRunning to false', FocusTimer.isRunning === false);
+            addResult('stop() clears the interval', FocusTimer.intervalId === null);
+            
+            // Test preserving remainingSeconds
+            FocusTimer.remainingSeconds = 1200;
+            FocusTimer.start();
+            FocusTimer.stop();
+            addResult('stop() preserves remainingSeconds', FocusTimer.remainingSeconds === 1200);
+            
+            // Test stop when not running
+            let noError = true;
+            try {
+                FocusTimer.stop();
+            } catch (e) {
+                noError = false;
+            }
+            addResult('stop() handles not running gracefully', noError && FocusTimer.isRunning === false);
+
+
+            addHeader('reset() Tests');
+            
+            FocusTimer.remainingSeconds = 500;
+            FocusTimer.reset();
+            addResult('reset() sets remainingSeconds to 1500', FocusTimer.remainingSeconds === 1500);
+            
+            FocusTimer.start();
+            FocusTimer.reset();
+            addResult('reset() sets isRunning to false', FocusTimer.isRunning === false);
+            addResult('reset() clears the interval', FocusTimer.intervalId === null);
+            
+            window.timerDisplayEl = { textContent: '' };
+            FocusTimer.remainingSeconds = 100;
+            FocusTimer.reset();
+            addResult('reset() updates display to 25:00', timerDisplayEl.textContent === '25:00');
+
+            addHeader('tick() Tests');
+            
+            window.timerDisplayEl = { textContent: '' };
+            FocusTimer.remainingSeconds = 1500;
+            FocusTimer.tick();
+            addResult('tick() decrements remainingSeconds by 1', FocusTimer.remainingSeconds === 1499);
+            
+            FocusTimer.remainingSeconds = 125;
+            FocusTimer.tick();
+            addResult('tick() updates display', timerDisplayEl.textContent === '02:04');
+            
+            // Test auto-stop at 0
+            FocusTimer.remainingSeconds = 1;
+            FocusTimer.start();
+            FocusTimer.tick();
+            addResult('tick() stops timer at 0', FocusTimer.remainingSeconds === 0 && FocusTimer.isRunning === false);
+            
+            // Test not decrementing below 0
+            FocusTimer.remainingSeconds = 0;
+            FocusTimer.tick();
+            addResult('tick() does not decrement below 0', FocusTimer.remainingSeconds === 0);
+
+            addHeader('updateDisplay() Tests');
+            
+            window.timerDisplayEl = { textContent: '' };
+            FocusTimer.remainingSeconds = 1500;
+            FocusTimer.updateDisplay();
+            addResult('updateDisplay() updates timer display', timerDisplayEl.textContent === '25:00');
+            
+            // Test graceful handling of missing element
+            window.timerDisplayEl = null;
+            noError = true;
+            try {
+                FocusTimer.updateDisplay();
+            } catch (e) {
+                noError = false;
+            }
+            addResult('updateDisplay() handles missing DOM element', noError);
+
+
+            // Summary
+            const summary = document.createElement('h2');
+            summary.textContent = `Test Summary: ${passCount}/${testCount} tests passed`;
+            summary.style.color = passCount === testCount ? '#155724' : '#721c24';
+            results.appendChild(summary);
+        }
+
+        // Run tests when page loads
+        runTests();
+    </script>
+</body>
+</html>

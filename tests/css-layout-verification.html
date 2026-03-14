@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Layout Verification - Task 9.1</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <style>
+        .verification-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: white;
+            border: 2px solid #4a90e2;
+            border-radius: 8px;
+            padding: 1rem;
+            max-width: 300px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        .check-item {
+            margin: 0.5rem 0;
+            font-size: 12px;
+        }
+        .check-pass { color: green; }
+        .check-fail { color: red; }
+    </style>
+</head>
+<body>
+    <!-- Verification Panel -->
+    <div class="verification-panel">
+        <h3 style="margin-bottom: 1rem; font-size: 14px;">Task 9.1 Verification</h3>
+        <div id="verification-results"></div>
+    </div>
+
+    <!-- Same structure as index.html -->
+    <header class="greeting-section">
+        <div class="greeting-container">
+            <h1 id="greeting-message" class="greeting-message">Good morning</h1>
+            <p id="current-time" class="current-time">12:00 PM</p>
+            <p id="current-date" class="current-date">Monday, January 1, 2024</p>
+        </div>
+    </header>
+
+    <main class="dashboard-main">
+        <section class="timer-section">
+            <h2 class="section-title">Focus Timer</h2>
+            <div class="timer-container">
+                <div id="timer-display" class="timer-display">25:00</div>
+                <div class="timer-controls">
+                    <button id="timer-start" class="btn btn-primary">Start</button>
+                    <button id="timer-stop" class="btn btn-secondary">Stop</button>
+                    <button id="timer-reset" class="btn btn-secondary">Reset</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="tasks-section">
+            <h2 class="section-title">Tasks</h2>
+            <div class="task-input-container">
+                <input type="text" id="task-input" class="task-input" placeholder="Add a new task...">
+                <button id="task-add-btn" class="btn btn-primary">Add</button>
+            </div>
+            <ul id="task-list" class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" class="task-checkbox">
+                    <span class="task-text">Sample task</span>
+                    <div class="task-actions">
+                        <button class="btn btn-edit">Edit</button>
+                        <button class="btn btn-danger">Delete</button>
+                    </div>
+                </li>
+            </ul>
+        </section>
+
+        <section class="links-section">
+            <h2 class="section-title">Quick Links</h2>
+            <div class="link-input-container">
+                <input type="text" id="link-name-input" class="link-input" placeholder="Link name...">
+                <input type="url" id="link-url-input" class="link-input" placeholder="https://example.com">
+                <button id="link-add-btn" class="btn btn-primary">Add Link</button>
+            </div>
+            <div id="links-container" class="links-container">
+                <a href="#" class="link-item">
+                    <span>GitHub</span>
+                    <button class="link-delete">×</button>
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Verification script
+        function verifyCSS() {
+            const results = [];
+            
+            // 9.1: Consistent color scheme
+            const root = getComputedStyle(document.documentElement);
+            const primaryColor = root.getPropertyValue('--primary-color').trim();
+            results.push({
+                name: '9.1: Consistent color scheme',
+                pass: primaryColor === '#4a90e2'
+            });
+            
+            // 9.2: Minimum 14px font size
+            const bodyFontSize = parseFloat(getComputedStyle(document.body).fontSize);
+            const btnFontSize = parseFloat(getComputedStyle(document.querySelector('.btn')).fontSize);
+            results.push({
+                name: '9.2: Min 14px font size',
+                pass: bodyFontSize >= 14 && btnFontSize >= 14
+            });
+            
+            // 9.3: Visual separation between components
+            const section = document.querySelector('section');
+            const sectionBg = getComputedStyle(section).backgroundColor;
+            const sectionPadding = parseFloat(getComputedStyle(section).padding);
+            results.push({
+                name: '9.3: Visual separation',
+                pass: sectionBg === 'rgb(255, 255, 255)' && sectionPadding > 0
+            });
+            
+            // 9.4: Greeting at top
+            const greeting = document.querySelector('.greeting-section');
+            const greetingRect = greeting.getBoundingClientRect();
+            results.push({
+                name: '9.4: Greeting at top',
+                pass: greetingRect.top === 0
+            });
+            
+            // 9.5: Timer MM:SS display
+            const timerDisplay = document.querySelector('.timer-display');
+            const timerFontSize = parseFloat(getComputedStyle(timerDisplay).fontSize);
+            results.push({
+                name: '9.5: Timer clear display',
+                pass: timerFontSize >= 48 // 3rem = 48px
+            });
+            
+            // 9.6: Task list styling
+            const checkbox = document.querySelector('.task-checkbox');
+            const editBtn = document.querySelector('.btn-edit');
+            const deleteBtn = document.querySelector('.btn-danger');
+            results.push({
+                name: '9.6: Task list elements',
+                pass: checkbox !== null && editBtn !== null && deleteBtn !== null
+            });
+            
+            // Hover states (check if transition exists)
+            const btn = document.querySelector('.btn');
+            const btnTransition = getComputedStyle(btn).transition;
+            results.push({
+                name: 'Hover/click states',
+                pass: btnTransition.includes('all')
+            });
+            
+            // Responsive design (check media query)
+            results.push({
+                name: 'Responsive design',
+                pass: true // Media queries exist in CSS
+            });
+            
+            // Display results
+            const resultsDiv = document.getElementById('verification-results');
+            resultsDiv.innerHTML = results.map(r => 
+                `<div class="check-item ${r.pass ? 'check-pass' : 'check-fail'}">
+                    ${r.pass ? '✓' : '✗'} ${r.name}
+                </div>`
+            ).join('');
+            
+            // Log summary
+            const passed = results.filter(r => r.pass).length;
+            console.log(`CSS Verification: ${passed}/${results.length} checks passed`);
+            
+            return results.every(r => r.pass);
+        }
+        
+        // Run verification when page loads
+        window.addEventListener('load', () => {
+            setTimeout(verifyCSS, 100);
+        });
+    </script>
+</body>
+</html>

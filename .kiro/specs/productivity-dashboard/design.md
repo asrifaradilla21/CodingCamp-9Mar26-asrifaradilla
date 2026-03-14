@@ -4,14 +4,14 @@
 
 The Productivity Dashboard is a single-page web application built with vanilla HTML, CSS, and JavaScript. It provides a minimal, distraction-free interface for personal productivity with four main components: a time-based greeting display, a 25-minute focus timer, a task management system, and quick links to favorite websites.
 
-The application is entirely client-side with no backend dependencies. All data persistence is handled through the browser's Local Storage API, making it lightweight, fast, and privacy-focused. The architecture emphasizes simplicity, maintainability, and responsive user interactions.
+The application is entirely client-side with no backend dependencies. All data persistence is handled through browser cookies, making it lightweight, fast, and privacy-focused. The architecture emphasizes simplicity, maintainability, and responsive user interactions.
 
 ### Key Design Principles
 
 - **Zero Dependencies**: Pure vanilla JavaScript with no frameworks or libraries
 - **Client-Side Only**: No server required, runs entirely in the browser
 - **Instant Feedback**: All interactions provide immediate visual response
-- **Data Persistence**: Automatic saving to Local Storage on every change
+- **Data Persistence**: Automatic saving to browser cookies on every change
 - **Browser Compatibility**: Works on all modern browsers (Chrome 90+, Firefox 88+, Edge 90+, Safari 14+)
 
 ## Architecture
@@ -38,7 +38,7 @@ The application follows a component-based architecture where each feature is enc
                   ↕
 ┌─────────────────────────────────────────┐
 │         Storage Layer                   │
-│      (Local Storage API)                │
+│       (Browser Cookies)                 │
 └─────────────────────────────────────────┘
 ```
 
@@ -54,11 +54,11 @@ graph TD
     
     C --> G[Render to DOM]
     D --> G
-    E --> H[Save to Local Storage]
+    E --> H[Save to Cookies]
     F --> H
     H --> G
     
-    I[Page Load] --> J[Load from Local Storage]
+    I[Page Load] --> J[Load from Cookies]
     J --> K[Initialize Components]
     K --> G
 ```
@@ -152,8 +152,8 @@ TaskList {
 - Validates task text (non-empty, non-whitespace)
 - Generates unique IDs for each task
 - Maintains task order (creation order)
-- Persists to Local Storage on every change
-- Loads from Local Storage on initialization
+- Persists to cookies on every change
+- Loads from cookies on initialization
 
 ### 4. Quick Links Component
 
@@ -178,12 +178,12 @@ QuickLinks {
 **Behavior**:
 - Validates URL format
 - Opens links in new tab
-- Persists to Local Storage on every change
-- Loads from Local Storage on initialization
+- Persists to cookies on every change
+- Loads from cookies on initialization
 
 ### 5. Storage Manager
 
-**Purpose**: Abstract Local Storage operations
+**Purpose**: Abstract cookie storage operations
 
 **Public Interface**:
 ```javascript
@@ -191,14 +191,56 @@ StorageManager {
   save(key: string, data: any): void
   load(key: string): any | null
   remove(key: string): void
+  setCookie(name: string, value: string, days: number): void
+  getCookie(name: string): string | null
+  deleteCookie(name: string): void
 }
 ```
 
 **Behavior**:
-- Serializes data to JSON before saving
-- Deserializes JSON when loading
+- Serializes data to JSON before saving to cookies
+- Deserializes JSON when loading from cookies
 - Handles storage errors gracefully
 - Returns null for missing keys
+- Sets cookies with appropriate expiration (default: 365 days)
+- Handles cookie size limitations (max 4KB per cookie)
+
+**Cookie Implementation Details**:
+
+The StorageManager uses the `document.cookie` API to read and write cookies. Cookie format follows the standard:
+```
+name=value; expires=date; path=/; SameSite=Strict
+```
+
+**setCookie(name, value, days)**:
+- Encodes the value using `encodeURIComponent()` to handle special characters
+- Calculates expiration date by adding `days` to current date
+- Sets path to `/` to make cookie available across entire domain
+- Includes `SameSite=Strict` for security
+
+**getCookie(name)**:
+- Parses `document.cookie` string which contains all cookies
+- Splits by `;` to get individual cookies
+- Finds cookie matching the name
+- Decodes value using `decodeURIComponent()`
+- Returns null if cookie not found
+
+**deleteCookie(name)**:
+- Sets cookie with same name but with expiration date in the past
+- This causes browser to delete the cookie
+
+**save(key, data)**:
+- Serializes data to JSON string
+- Calls `setCookie()` with 365-day expiration
+- Catches and logs any errors
+
+**load(key)**:
+- Calls `getCookie()` to retrieve cookie value
+- Parses JSON string back to object
+- Returns null if cookie doesn't exist or JSON is invalid
+
+**remove(key)**:
+- Calls `deleteCookie()` to remove the cookie
 
 ## Data Models
 
@@ -245,13 +287,19 @@ interface TimerState {
 }
 ```
 
-### Local Storage Schema
+### Cookie Storage Schema
 
 **Storage Keys**:
-- `productivity-dashboard-tasks`: JSON array of Task objects
-- `productivity-dashboard-links`: JSON array of Link objects
+- `productivity-dashboard-tasks`: JSON array of Task objects stored in cookie
+- `productivity-dashboard-links`: JSON array of Link objects stored in cookie
 
-**Example Storage Data**:
+**Cookie Configuration**:
+- Expiration: 365 days
+- Path: `/` (available across entire domain)
+- SameSite: `Strict` (security measure)
+- No `Secure` flag (to work on both HTTP and HTTPS during development)
+
+**Example Cookie Data**:
 ```json
 {
   "productivity-dashboard-tasks": [
@@ -272,6 +320,12 @@ interface TimerState {
   ]
 }
 ```
+
+**Cookie Size Considerations**:
+- Each cookie has a maximum size of ~4KB
+- JSON serialization adds overhead
+- Estimated capacity: ~50-100 tasks or ~30-50 links per cookie
+- If size limits are exceeded, older items may need to be pruned
 
 
 ## Correctness Properties
@@ -358,13 +412,13 @@ interface TimerState {
 
 ### Property 14: Task Storage Persistence
 
-*For any* task operation (add, edit, toggle, delete), the resulting task list should be immediately saved to Local Storage and match the in-memory state
+*For any* task operation (add, edit, toggle, delete), the resulting task list should be immediately saved to cookies and match the in-memory state
 
 **Validates: Requirements 4.1, 4.2, 4.3, 4.4**
 
 ### Property 15: Task Storage Round-Trip
 
-*For any* array of valid tasks, saving to Local Storage and then loading should produce an equivalent task list with all properties preserved
+*For any* array of valid tasks, saving to cookies and then loading should produce an equivalent task list with all properties preserved
 
 **Validates: Requirements 4.5**
 
@@ -388,13 +442,13 @@ interface TimerState {
 
 ### Property 19: Link Storage Persistence
 
-*For any* link operation (add, delete), the resulting link list should be immediately saved to Local Storage and match the in-memory state
+*For any* link operation (add, delete), the resulting link list should be immediately saved to cookies and match the in-memory state
 
 **Validates: Requirements 6.1, 6.2**
 
 ### Property 20: Link Storage Round-Trip
 
-*For any* array of valid links, saving to Local Storage and then loading should produce an equivalent link list with all properties preserved
+*For any* array of valid links, saving to cookies and then loading should produce an equivalent link list with all properties preserved
 
 **Validates: Requirements 6.3**
 
@@ -406,31 +460,33 @@ interface TimerState {
 - Empty strings or whitespace-only strings are rejected silently
 - No error messages displayed to user
 - Task list remains unchanged
-- No data is saved to Local Storage
+- No data is saved to cookies
 
 **URL Validation**:
 - Invalid URLs (missing protocol, empty) are rejected silently
 - No error messages displayed to user
 - Link list remains unchanged
-- No data is saved to Local Storage
+- No data is saved to cookies
 
 ### Storage Errors
 
-**Local Storage Unavailable**:
+**Cookies Unavailable**:
 - Application continues to function with in-memory state only
 - User is notified that data will not persist
 - All features remain operational within the session
+- May occur if cookies are disabled in browser settings
 
-**Storage Quota Exceeded**:
+**Cookie Size Exceeded**:
 - Attempt to save fails gracefully
-- User is notified of storage limit
+- User is notified of storage limit (4KB per cookie)
 - Existing data is preserved
 - User can delete items to free space
+- Consider pruning older items automatically
 
-**Corrupted Storage Data**:
+**Corrupted Cookie Data**:
 - Invalid JSON is caught during load
 - Application initializes with empty state
-- Corrupted data is cleared from storage
+- Corrupted data is cleared from cookies
 - User can start fresh
 
 ### Timer Edge Cases
@@ -530,12 +586,14 @@ tests/
 **Browser Compatibility**:
 - Manual testing required across Chrome 90+, Firefox 88+, Edge 90+, Safari 14+
 - Verify all features work consistently across browsers
-- Test Local Storage behavior in each browser
+- Test cookie behavior in each browser
+- Verify cookie persistence across browser sessions
 
 **Performance Testing**:
 - Manual verification of load time (< 1 second)
 - Manual verification of interaction responsiveness (< 100ms)
 - Test with 100 tasks and 50 links to verify performance
+- Monitor cookie size to ensure it stays within 4KB limit
 
 **Visual Design**:
 - Manual review of color scheme consistency

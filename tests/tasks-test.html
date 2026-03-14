@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskList Module Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .test-suite {
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .test-suite h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .test-case {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 3px solid #ccc;
+        }
+        .test-case.pass {
+            border-left-color: #4CAF50;
+            background-color: #f1f8f4;
+        }
+        .test-case.fail {
+            border-left-color: #f44336;
+            background-color: #fef1f0;
+        }
+        .test-name {
+            font-weight: bold;
+        }
+        .test-error {
+            color: #d32f2f;
+            margin-top: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            font-size: 18px;
+        }
+        .summary.all-pass {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        .summary.has-fail {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <h1>TaskList Module Tests</h1>
+    <div id="test-results"></div>
+    <div id="summary"></div>
+
+    <script>
+        // Simple test framework
+        const results = [];
+        let currentSuite = '';
+
+        function describe(suiteName, fn) {
+            currentSuite = suiteName;
+            fn();
+        }
+
+        function test(testName, fn) {
+            try {
+                fn();
+                results.push({ suite: currentSuite, name: testName, pass: true });
+            } catch (error) {
+                results.push({ suite: currentSuite, name: testName, pass: false, error: error.message });
+            }
+        }
+
+        function beforeEach(fn) {
+            // Simple implementation - just store for now
+            window.beforeEachFn = fn;
+        }
+
+        function expect(actual) {
+            return {
+                toBe(expected) {
+                    if (actual !== expected) {
+                        throw new Error(`Expected ${JSON.stringify(expected)} but got ${JSON.stringify(actual)}`);
+                    }
+                },
+                toEqual(expected) {
+                    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+                        throw new Error(`Expected ${JSON.stringify(expected)} but got ${JSON.stringify(actual)}`);
+                    }
+                },
+                toHaveLength(expected) {
+                    if (actual.length !== expected) {
+                        throw new Error(`Expected length ${expected} but got ${actual.length}`);
+                    }
+                },
+                toBeGreaterThanOrEqual(expected) {
+                    if (actual < expected) {
+                        throw new Error(`Expected ${actual} to be >= ${expected}`);
+                    }
+                },
+                toBeLessThanOrEqual(expected) {
+                    if (actual > expected) {
+                        throw new Error(`Expected ${actual} to be <= ${expected}`);
+                    }
+                },
+                not: {
+                    toBe(expected) {
+                        if (actual === expected) {
+                            throw new Error(`Expected not to be ${JSON.stringify(expected)}`);
+                        }
+                    }
+                }
+            };
+        }
+
+        // Mock StorageManager
+        const mockStorageManager = {
+            data: {},
+            save: function(key, value) {
+                this.data[key] = JSON.parse(JSON.stringify(value));
+            },
+            load: function(key) {
+                return this.data[key] ? JSON.parse(JSON.stringify(this.data[key])) : null;
+            },
+            remove: function(key) {
+                delete this.data[key];
+            }
+        };
+
+        // Create a test instance of TaskList
+        function createTaskList() {
+            return {
+                tasks: [],
+                
+                validateTaskText(text) {
+                    if (typeof text !== 'string') {
+                        return false;
+                    }
+                    return text.trim().length > 0;
+                },
+                
+                addTask(text) {
+                    if (!this.validateTaskText(text)) {
+                        return false;
+                    }
+                    
+                    const task = {
+                        id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                        text: text.trim(),
+                        completed: false,
+                        createdAt: Date.now()
+                    };
+                    
+                    this.tasks.push(task);
+                    this.saveTasks();
+                    return true;
+                },
+                
+                editTask(id, newText) {
+                    if (!this.validateTaskText(newText)) {
+                        return false;
+                    }
+                    
+                    const task = this.tasks.find(t => t.id === id);
+                    if (!task) {
+                        return false;
+                    }
+                    
+                    task.text = newText.trim();
+                    this.saveTasks();
+                    return true;
+                },
+                
+                toggleComplete(id) {
+                    const task = this.tasks.find(t => t.id === id);
+                    if (!task) {
+                        return;
+                    }
+                    
+                    task.completed = !task.completed;
+                    this.saveTasks();
+                },
+                
+                deleteTask(id) {
+                    const index = this.tasks.findIndex(t => t.id === id);
+                    if (index === -1) {
+                        return;
+                    }
+                    
+                    this.tasks.splice(index, 1);
+                    this.saveTasks();
+                },
+                
+                loadTasks() {
+                    const loaded = mockStorageManager.load('productivity-dashboard-tasks');
+                    if (loaded && Array.isArray(loaded)) {
+                        this.tasks = loaded;
+                    } else {
+                        this.tasks = [];
+                    }
+                },
+                
+                saveTasks() {
+                    mockStorageManager.save('productivity-dashboard-tasks', this.tasks);
+                }
+            };
+        }
+
+        // Run tests
+        let taskList;
+
+        describe('TaskList Module - validateTaskText', () => {
+            beforeEach(() => {
+                taskList = createTaskList();
+                mockStorageManager.data = {};
+            });
+
+            test('should accept valid non-empty text', () => {
+                expect(taskList.validateTaskText('Buy groceries')).toBe(true);
+            });
+            
+            test('should reject empty string', () => {
+                expect(taskList.validateTaskText('')).toBe(false);
+            });
+            
+            test('should reject whitespace-only string', () => {
+                expect(taskList.validateTaskText('   ')).toBe(false);
+            });
+            
+            test('should reject non-string values', () => {
+                expect(taskList.validateTaskText(null)).toBe(false);
+            });
+            
+            test('should accept text with leading/trailing whitespace', () => {
+                expect(taskList.validateTaskText('  Valid task  ')).toBe(true);
+            });
+        });
+
+        describe('TaskList Module - addTask', () => {
+            beforeEach(() => {
+                taskList = createTaskList();
+                mockStorageManager.data = {};
+            });
+
+            test('should add a valid task to the list', () => {
+                const result = taskList.addTask('Complete project');
+                expect(result).toBe(true);
+                expect(taskList.tasks.length).toBe(1);
+                expect(taskList.tasks[0].text).toBe('Complete project');
+            });
+            
+            test('should trim whitespace from task text', () => {
+                taskList.addTask('  Trimmed task  ');
+                expect(taskList.tasks[0].text).toBe('Trimmed task');
+            });
+            
+            test('should reject empty task text', () => {
+                const result = taskList.addTask('');
+                expect(result).toBe(false);
+                expect(taskList.tasks.length).toBe(0);
+            });
+            
+            test('should reject whitespace-only task text', () => {
+                const result = taskList.addTask('   ');
+                expect(result).toBe(false);
+                expect(taskList.tasks.length).toBe(0);
+            });
+            
+            test('should generate unique IDs for tasks', () => {
+                taskList.addTask('Task 1');
+                taskList.addTask('Task 2');
+                expect(taskList.tasks[0].id).not.toBe(taskList.tasks[1].id);
+            });
+            
+            test('should set completed to false by default', () => {
+                taskList.addTask('New task');
+                expect(taskList.tasks[0].completed).toBe(false);
+            });
+            
+            test('should set createdAt timestamp', () => {
+                const before = Date.now();
+                taskList.addTask('New task');
+                const after = Date.now();
+                expect(taskList.tasks[0].createdAt).toBeGreaterThanOrEqual(before);
+                expect(taskList.tasks[0].createdAt).toBeLessThanOrEqual(after);
+            });
+            
+            test('should save tasks to storage after adding', () => {
+                taskList.addTask('Task to save');
+                const saved = mockStorageManager.load('productivity-dashboard-tasks');
+                expect(saved).toHaveLength(1);
+                expect(saved[0].text).toBe('Task to save');
+            });
+        });
+
+        describe('TaskList Module - editTask', () => {
+            beforeEach(() => {
+                taskList = createTaskList();
+                mockStorageManager.data = {};
+            });
+
+            test('should update task text by id', () => {
+                taskList.addTask('Original text');
+                const taskId = taskList.tasks[0].id;
+                const result = taskList.editTask(taskId, 'Updated text');
+                expect(result).toBe(true);
+                expect(taskList.tasks[0].text).toBe('Updated text');
+            });
+            
+            test('should trim whitespace from new text', () => {
+                taskList.addTask('Original');
+                const taskId = taskList.tasks[0].id;
+                taskList.editTask(taskId, '  Updated  ');
+                expect(taskList.tasks[0].text).toBe('Updated');
+            });
+            
+            test('should reject empty new text', () => {
+                taskList.addTask('Original');
+                const taskId = taskList.tasks[0].id;
+                const result = taskList.editTask(taskId, '');
+                expect(result).toBe(false);
+                expect(taskList.tasks[0].text).toBe('Original');
+            });
+            
+            test('should return false for non-existent task id', () => {
+                const result = taskList.editTask('non-existent-id', 'New text');
+                expect(result).toBe(false);
+            });
+            
+            test('should preserve id and createdAt when editing', () => {
+                taskList.addTask('Original');
+                const originalId = taskList.tasks[0].id;
+                const originalCreatedAt = taskList.tasks[0].createdAt;
+                taskList.editTask(originalId, 'Updated');
+                expect(taskList.tasks[0].id).toBe(originalId);
+                expect(taskList.tasks[0].createdAt).toBe(originalCreatedAt);
+            });
+        });
+
+        describe('TaskList Module - toggleComplete', () => {
+            beforeEach(() => {
+                taskList = createTaskList();
+                mockStorageManager.data = {};
+            });
+
+            test('should toggle completed status from false to true', () => {
+                taskList.addTask('Task to complete');
+                const taskId = taskList.tasks[0].id;
+                taskList.toggleComplete(taskId);
+                expect(taskList.tasks[0].completed).toBe(true);
+            });
+            
+            test('should toggle completed status from true to false', () => {
+                taskList.addTask('Task to uncomplete');
+                const taskId = taskList.tasks[0].id;
+                taskList.tasks[0].completed = true;
+                taskList.toggleComplete(taskId);
+                expect(taskList.tasks[0].completed).toBe(false);
+            });
+            
+            test('should handle non-existent task id gracefully', () => {
+                taskList.addTask('Task');
+                taskList.toggleComplete('non-existent-id');
+                expect(taskList.tasks[0].completed).toBe(false);
+            });
+        });
+
+        describe('TaskList Module - deleteTask', () => {
+            beforeEach(() => {
+                taskList = createTaskList();
+                mockStorageManager.data = {};
+            });
+
+            test('should remove task from list by id', () => {
+                taskList.addTask('Task to delete');
+                const taskId = taskList.tasks[0].id;
+                taskList.deleteTask(taskId);
+                expect(taskList.tasks.length).toBe(0);
+            });
+            
+            test('should only delete the specified task', () => {
+                taskList.addTask('Task 1');
+                taskList.addTask('Task 2');
+                taskList.addTask('Task 3');
+                const taskId = taskList.tasks[1].id;
+                taskList.deleteTask(taskId);
+                expect(taskList.tasks.length).toBe(2);
+                expect(taskList.tasks[0].text).toBe('Task 1');
+                expect(taskList.tasks[1].text).toBe('Task 3');
+            });
+            
+            test('should handle non-existent task id gracefully', () => {
+                taskList.addTask('Task');
+                taskList.deleteTask('non-existent-id');
+                expect(taskList.tasks.length).toBe(1);
+            });
+        });
+
+        describe('TaskList Module - loadTasks', () => {
+            beforeEach(() => {
+                taskList = createTaskList();
+                mockStorageManager.data = {};
+            });
+
+            test('should load tasks from storage', () => {
+                const testTasks = [
+                    { id: 'task-1', text: 'Task 1', completed: false, createdAt: Date.now() },
+                    { id: 'task-2', text: 'Task 2', completed: true, createdAt: Date.now() }
+                ];
+                mockStorageManager.save('productivity-dashboard-tasks', testTasks);
+                taskList.loadTasks();
+                expect(taskList.tasks).toHaveLength(2);
+                expect(taskList.tasks[0].text).toBe('Task 1');
+                expect(taskList.tasks[1].text).toBe('Task 2');
+            });
+            
+            test('should initialize empty array when no tasks in storage', () => {
+                taskList.loadTasks();
+                expect(taskList.tasks).toEqual([]);
+            });
+        });
+
+        describe('TaskList Module - Task order preservation', () => {
+            beforeEach(() => {
+                taskList = createTaskList();
+                mockStorageManager.data = {};
+            });
+
+            test('should maintain tasks in creation order', () => {
+                taskList.addTask('First task');
+                taskList.addTask('Second task');
+                taskList.addTask('Third task');
+                expect(taskList.tasks[0].text).toBe('First task');
+                expect(taskList.tasks[1].text).toBe('Second task');
+                expect(taskList.tasks[2].text).toBe('Third task');
+            });
+        });
+
+        // Display results
+        function displayResults() {
+            const resultsDiv = document.getElementById('test-results');
+            const summaryDiv = document.getElementById('summary');
+            
+            const suites = {};
+            results.forEach(result => {
+                if (!suites[result.suite]) {
+                    suites[result.suite] = [];
+                }
+                suites[result.suite].push(result);
+            });
+            
+            let html = '';
+            for (const [suiteName, tests] of Object.entries(suites)) {
+                html += `<div class="test-suite">`;
+                html += `<h2>${suiteName}</h2>`;
+                tests.forEach(test => {
+                    html += `<div class="test-case ${test.pass ? 'pass' : 'fail'}">`;
+                    html += `<div class="test-name">${test.pass ? '✓' : '✗'} ${test.name}</div>`;
+                    if (!test.pass) {
+                        html += `<div class="test-error">${test.error}</div>`;
+                    }
+                    html += `</div>`;
+                });
+                html += `</div>`;
+            }
+            resultsDiv.innerHTML = html;
+            
+            const passed = results.filter(r => r.pass).length;
+            const failed = results.filter(r => !r.pass).length;
+            const total = results.length;
+            
+            summaryDiv.className = `summary ${failed === 0 ? 'all-pass' : 'has-fail'}`;
+            summaryDiv.innerHTML = `
+                <strong>Test Summary:</strong> ${passed}/${total} tests passed
+                ${failed > 0 ? `<br><strong>${failed} test(s) failed</strong>` : ''}
+            `;
+        }
+
+        displayResults();
+    </script>
+</body>
+</html>

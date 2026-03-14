@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GreetingDisplay Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        .pass {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .fail {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        #results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>GreetingDisplay Tests</h1>
+    <div id="results"></div>
+
+    <script>
+        // Copy the GreetingDisplay implementation here for testing
+        const GreetingDisplay = {
+            intervalId: null,
+
+            init() {
+                this.updateDisplay();
+                this.intervalId = setInterval(() => {
+                    this.updateDisplay();
+                }, 1000);
+            },
+
+            updateDisplay() {
+                const now = new Date();
+                const hour = now.getHours();
+                
+                if (greetingMessageEl) {
+                    greetingMessageEl.textContent = this.getGreeting(hour);
+                }
+                
+                if (currentTimeEl) {
+                    currentTimeEl.textContent = this.formatTime(now);
+                }
+                
+                if (currentDateEl) {
+                    currentDateEl.textContent = this.formatDate(now);
+                }
+            },
+
+            getGreeting(hour) {
+                if (hour >= 5 && hour <= 11) {
+                    return 'Good morning';
+                } else if (hour >= 12 && hour <= 16) {
+                    return 'Good afternoon';
+                } else if (hour >= 17 && hour <= 20) {
+                    return 'Good evening';
+                } else {
+                    return 'Good night';
+                }
+            },
+
+            formatTime(date) {
+                let hours = date.getHours();
+                const minutes = date.getMinutes();
+                const seconds = date.getSeconds();
+                
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                
+                hours = hours % 12;
+                hours = hours ? hours : 12;
+                
+                const minutesStr = minutes.toString().padStart(2, '0');
+                const secondsStr = seconds.toString().padStart(2, '0');
+                
+                return `${hours}:${minutesStr}:${secondsStr} ${ampm}`;
+            },
+
+            formatDate(date) {
+                const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+                
+                const dayOfWeek = daysOfWeek[date.getDay()];
+                const month = months[date.getMonth()];
+                const day = date.getDate();
+                const year = date.getFullYear();
+                
+                return `${dayOfWeek}, ${month} ${day}, ${year}`;
+            }
+        };
+
+        // Test runner
+        const results = document.getElementById('results');
+        let testCount = 0;
+        let passCount = 0;
+
+        function addResult(testName, passed, message = '') {
+            testCount++;
+            if (passed) passCount++;
+            
+            const div = document.createElement('div');
+            div.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            div.textContent = `${passed ? '✓' : '✗'} ${testName}${message ? ': ' + message : ''}`;
+            results.appendChild(div);
+        }
+
+        function addHeader(text) {
+            const h2 = document.createElement('h2');
+            h2.textContent = text;
+            results.appendChild(h2);
+        }
+
+        // Run tests
+        function runTests() {
+            addHeader('getGreeting() Tests');
+            
+            // Test morning hours (5-11)
+            addResult('Hour 5 returns "Good morning"', GreetingDisplay.getGreeting(5) === 'Good morning');
+            addResult('Hour 8 returns "Good morning"', GreetingDisplay.getGreeting(8) === 'Good morning');
+            addResult('Hour 11 returns "Good morning"', GreetingDisplay.getGreeting(11) === 'Good morning');
+
+            // Test afternoon hours (12-16)
+            addResult('Hour 12 returns "Good afternoon"', GreetingDisplay.getGreeting(12) === 'Good afternoon');
+            addResult('Hour 14 returns "Good afternoon"', GreetingDisplay.getGreeting(14) === 'Good afternoon');
+            addResult('Hour 16 returns "Good afternoon"', GreetingDisplay.getGreeting(16) === 'Good afternoon');
+
+            // Test evening hours (17-20)
+            addResult('Hour 17 returns "Good evening"', GreetingDisplay.getGreeting(17) === 'Good evening');
+            addResult('Hour 19 returns "Good evening"', GreetingDisplay.getGreeting(19) === 'Good evening');
+            addResult('Hour 20 returns "Good evening"', GreetingDisplay.getGreeting(20) === 'Good evening');
+
+            // Test night hours (21-23)
+            addResult('Hour 21 returns "Good night"', GreetingDisplay.getGreeting(21) === 'Good night');
+            addResult('Hour 22 returns "Good night"', GreetingDisplay.getGreeting(22) === 'Good night');
+            addResult('Hour 23 returns "Good night"', GreetingDisplay.getGreeting(23) === 'Good night');
+
+            // Test night hours (0-4)
+            addResult('Hour 0 returns "Good night"', GreetingDisplay.getGreeting(0) === 'Good night');
+            addResult('Hour 2 returns "Good night"', GreetingDisplay.getGreeting(2) === 'Good night');
+            addResult('Hour 4 returns "Good night"', GreetingDisplay.getGreeting(4) === 'Good night');
+
+            // Test boundary hours
+            addResult('Boundary: Hour 4 returns "Good night"', GreetingDisplay.getGreeting(4) === 'Good night');
+            addResult('Boundary: Hour 5 returns "Good morning"', GreetingDisplay.getGreeting(5) === 'Good morning');
+            addResult('Boundary: Hour 11 returns "Good morning"', GreetingDisplay.getGreeting(11) === 'Good morning');
+            addResult('Boundary: Hour 12 returns "Good afternoon"', GreetingDisplay.getGreeting(12) === 'Good afternoon');
+            addResult('Boundary: Hour 16 returns "Good afternoon"', GreetingDisplay.getGreeting(16) === 'Good afternoon');
+            addResult('Boundary: Hour 17 returns "Good evening"', GreetingDisplay.getGreeting(17) === 'Good evening');
+            addResult('Boundary: Hour 20 returns "Good evening"', GreetingDisplay.getGreeting(20) === 'Good evening');
+            addResult('Boundary: Hour 21 returns "Good night"', GreetingDisplay.getGreeting(21) === 'Good night');
+
+            addHeader('formatTime() Tests');
+
+            // Test 12-hour format with AM/PM
+            const date1 = new Date('2024-01-15T09:30:45');
+            addResult('Format 9:30:45 AM', GreetingDisplay.formatTime(date1) === '9:30:45 AM');
+
+            const date2 = new Date('2024-01-15T15:45:30');
+            addResult('Format 3:45:30 PM', GreetingDisplay.formatTime(date2) === '3:45:30 PM');
+
+            // Test midnight
+            const midnight = new Date('2024-01-15T00:00:00');
+            addResult('Midnight as 12:00:00 AM', GreetingDisplay.formatTime(midnight) === '12:00:00 AM');
+
+            // Test noon
+            const noon = new Date('2024-01-15T12:00:00');
+            addResult('Noon as 12:00:00 PM', GreetingDisplay.formatTime(noon) === '12:00:00 PM');
+
+            // Test zero-padding
+            const date3 = new Date('2024-01-15T03:05:09');
+            addResult('Zero-pad minutes and seconds', GreetingDisplay.formatTime(date3) === '3:05:09 AM');
+
+            // Test 1 AM
+            const date4 = new Date('2024-01-15T01:00:00');
+            addResult('1:00:00 AM', GreetingDisplay.formatTime(date4) === '1:00:00 AM');
+
+            // Test 1 PM
+            const date5 = new Date('2024-01-15T13:00:00');
+            addResult('1:00:00 PM', GreetingDisplay.formatTime(date5) === '1:00:00 PM');
+
+            // Test 11:59:59 AM
+            const date6 = new Date('2024-01-15T11:59:59');
+            addResult('11:59:59 AM', GreetingDisplay.formatTime(date6) === '11:59:59 AM');
+
+            // Test 11:59:59 PM
+            const date7 = new Date('2024-01-15T23:59:59');
+            addResult('11:59:59 PM', GreetingDisplay.formatTime(date7) === '11:59:59 PM');
+
+            addHeader('formatDate() Tests');
+
+            // Test readable date format
+            const dateTest1 = new Date('2024-01-15T12:00:00');
+            addResult('Format Monday, January 15, 2024', 
+                GreetingDisplay.formatDate(dateTest1) === 'Monday, January 15, 2024');
+
+            // Test different months
+            const dateTest2 = new Date('2024-02-20T12:00:00');
+            addResult('Format Tuesday, February 20, 2024', 
+                GreetingDisplay.formatDate(dateTest2) === 'Tuesday, February 20, 2024');
+
+            const dateTest3 = new Date('2024-12-25T12:00:00');
+            addResult('Format Wednesday, December 25, 2024', 
+                GreetingDisplay.formatDate(dateTest3) === 'Wednesday, December 25, 2024');
+
+            // Test different days of week
+            const dateTest4 = new Date('2024-01-14T12:00:00'); // Sunday
+            addResult('Format Sunday, January 14, 2024', 
+                GreetingDisplay.formatDate(dateTest4) === 'Sunday, January 14, 2024');
+
+            const dateTest5 = new Date('2024-01-20T12:00:00'); // Saturday
+            addResult('Format Saturday, January 20, 2024', 
+                GreetingDisplay.formatDate(dateTest5) === 'Saturday, January 20, 2024');
+
+            // Test first day of month
+            const dateTest6 = new Date('2024-03-01T12:00:00');
+            addResult('Format Friday, March 1, 2024', 
+                GreetingDisplay.formatDate(dateTest6) === 'Friday, March 1, 2024');
+
+            // Test last day of month
+            const dateTest7 = new Date('2024-01-31T12:00:00');
+            addResult('Format Wednesday, January 31, 2024', 
+                GreetingDisplay.formatDate(dateTest7) === 'Wednesday, January 31, 2024');
+
+            // Test leap year date
+            const dateTest8 = new Date('2024-02-29T12:00:00');
+            addResult('Format Thursday, February 29, 2024', 
+                GreetingDisplay.formatDate(dateTest8) === 'Thursday, February 29, 2024');
+
+            addHeader('init() and updateDisplay() Tests');
+
+            // Create mock DOM elements
+            window.greetingMessageEl = { textContent: '' };
+            window.currentTimeEl = { textContent: '' };
+            window.currentDateEl = { textContent: '' };
+
+            // Test updateDisplay
+            GreetingDisplay.updateDisplay();
+            const displayUpdated = 
+                greetingMessageEl.textContent !== '' &&
+                currentTimeEl.textContent !== '' &&
+                currentDateEl.textContent !== '';
+            addResult('updateDisplay() updates all elements', displayUpdated);
+
+            // Test init sets up interval
+            GreetingDisplay.init();
+            addResult('init() sets up interval', GreetingDisplay.intervalId !== null);
+
+            // Clean up interval
+            if (GreetingDisplay.intervalId) {
+                clearInterval(GreetingDisplay.intervalId);
+            }
+
+            // Test graceful handling of missing elements
+            window.greetingMessageEl = null;
+            window.currentTimeEl = null;
+            window.currentDateEl = null;
+            let noError = true;
+            try {
+                GreetingDisplay.updateDisplay();
+            } catch (e) {
+                noError = false;
+            }
+            addResult('Handles missing DOM elements gracefully', noError);
+
+            // Summary
+            const summary = document.createElement('h2');
+            summary.textContent = `Test Summary: ${passCount}/${testCount} tests passed`;
+            summary.style.color = passCount === testCount ? '#155724' : '#721c24';
+            results.appendChild(summary);
+        }
+
+        // Run tests when page loads
+        runTests();
+    </script>
+</body>
+</html>

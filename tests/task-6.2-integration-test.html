@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task 6.2 Integration Test - TaskList Storage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 20px;
+        }
+        .test-step {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-left: 4px solid #2196F3;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .test-result.pass {
+            background-color: #e8f5e9;
+            border: 1px solid #4CAF50;
+            color: #2e7d32;
+        }
+        .test-result.fail {
+            background-color: #ffebee;
+            border: 1px solid #f44336;
+            color: #c62828;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.secondary {
+            background-color: #2196F3;
+        }
+        button.secondary:hover {
+            background-color: #0b7dda;
+        }
+        button.danger {
+            background-color: #f44336;
+        }
+        button.danger:hover {
+            background-color: #da190b;
+        }
+        .code {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #e3f2fd;
+            border-radius: 8px;
+            border: 2px solid #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Task 6.2 Integration Test: TaskList Storage</h1>
+    
+    <div class="test-container">
+        <h2>Test Objective</h2>
+        <p>Verify that TaskList correctly integrates with StorageManager to persist tasks to browser cookies.</p>
+        
+        <h3>Requirements Being Tested:</h3>
+        <ul>
+            <li>4.1: Task creation persists to cookies</li>
+            <li>4.2: Task editing persists to cookies</li>
+            <li>4.3: Task completion persists to cookies</li>
+            <li>4.4: Task deletion persists to cookies</li>
+            <li>4.5: Tasks load from cookies on initialization</li>
+            <li>4.6: Empty storage handled gracefully</li>
+        </ul>
+    </div>
+
+    <div class="test-container">
+        <h2>Interactive Tests</h2>
+        
+        <div class="test-step">
+            <h3>Step 1: Clear All Cookies</h3>
+            <p>Clear any existing task data to start fresh.</p>
+            <button onclick="clearCookies()">Clear Cookies</button>
+            <div id="clear-result"></div>
+        </div>
+
+        <div class="test-step">
+            <h3>Step 2: Add Tasks</h3>
+            <p>Add some tasks and verify they are saved to cookies.</p>
+            <button onclick="addTestTasks()">Add Test Tasks</button>
+            <div id="add-result"></div>
+        </div>
+
+        <div class="test-step">
+            <h3>Step 3: Verify Cookie Storage</h3>
+            <p>Check that tasks are stored in cookies with the correct key.</p>
+            <button onclick="verifyCookieStorage()">Verify Cookie Storage</button>
+            <div id="verify-result"></div>
+        </div>
+
+        <div class="test-step">
+            <h3>Step 4: Reload and Verify Persistence</h3>
+            <p>Reload the page to verify tasks are loaded from cookies.</p>
+            <button onclick="location.reload()">Reload Page</button>
+            <div id="reload-result"></div>
+        </div>
+
+        <div class="test-step">
+            <h3>Step 5: Test Empty Storage</h3>
+            <p>Clear cookies and verify empty array initialization.</p>
+            <button onclick="testEmptyStorage()">Test Empty Storage</button>
+            <div id="empty-result"></div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>Current State</h2>
+        <div id="current-state"></div>
+    </div>
+
+    <div class="summary" id="summary" style="display: none;">
+        <h2>Test Summary</h2>
+        <div id="summary-content"></div>
+    </div>
+
+    <script>
+        // Mock StorageManager for testing
+        const StorageManager = {
+            setCookie(name, value, days = 365) {
+                try {
+                    const encodedValue = encodeURIComponent(value);
+                    const date = new Date();
+                    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                    const expires = `expires=${date.toUTCString()}`;
+                    document.cookie = `${name}=${encodedValue}; ${expires}; path=/; SameSite=Strict`;
+                } catch (error) {
+                    console.error('Failed to set cookie:', error);
+                }
+            },
+
+            getCookie(name) {
+                try {
+                    const nameEQ = name + "=";
+                    const cookies = document.cookie.split(';');
+                    
+                    for (let i = 0; i < cookies.length; i++) {
+                        let cookie = cookies[i];
+                        while (cookie.charAt(0) === ' ') {
+                            cookie = cookie.substring(1);
+                        }
+                        if (cookie.indexOf(nameEQ) === 0) {
+                            const value = cookie.substring(nameEQ.length);
+                            return decodeURIComponent(value);
+                        }
+                    }
+                    return null;
+                } catch (error) {
+                    console.error('Failed to get cookie:', error);
+                    return null;
+                }
+            },
+
+            deleteCookie(name) {
+                try {
+                    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict`;
+                } catch (error) {
+                    console.error('Failed to delete cookie:', error);
+                }
+            },
+
+            save(key, data) {
+                try {
+                    const serialized = JSON.stringify(data);
+                    if (serialized.length > 4096) {
+                        console.error('Cookie size exceeded (4KB limit).');
+                        return;
+                    }
+                    this.setCookie(key, serialized);
+                } catch (error) {
+                    console.error('Failed to save data:', error);
+                }
+            },
+
+            load(key) {
+                try {
+                    const serialized = this.getCookie(key);
+                    if (serialized === null) {
+                        return null;
+                    }
+                    return JSON.parse(serialized);
+                } catch (error) {
+                    console.error('Failed to load data:', error);
+                    this.remove(key);
+                    return null;
+                }
+            },
+
+            remove(key) {
+                this.deleteCookie(key);
+            }
+        };
+
+        // TaskList implementation
+        const TaskList = {
+            tasks: [],
+
+            validateTaskText(text) {
+                if (typeof text !== 'string') {
+                    return false;
+                }
+                return text.trim().length > 0;
+            },
+
+            addTask(text) {
+                if (!this.validateTaskText(text)) {
+                    return false;
+                }
+                
+                const task = {
+                    id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    text: text.trim(),
+                    completed: false,
+                    createdAt: Date.now()
+                };
+                
+                this.tasks.push(task);
+                this.saveTasks();
+                return true;
+            },
+
+            loadTasks() {
+                const loaded = StorageManager.load('productivity-dashboard-tasks');
+                if (loaded && Array.isArray(loaded)) {
+                    this.tasks = loaded;
+                } else {
+                    this.tasks = [];
+                }
+            },
+
+            saveTasks() {
+                StorageManager.save('productivity-dashboard-tasks', this.tasks);
+            }
+        };
+
+        // Test functions
+        function clearCookies() {
+            StorageManager.remove('productivity-dashboard-tasks');
+            TaskList.tasks = [];
+            showResult('clear-result', 'pass', '✓ Cookies cleared successfully');
+            updateCurrentState();
+        }
+
+        function addTestTasks() {
+            TaskList.addTask('Complete project documentation');
+            TaskList.addTask('Review pull requests');
+            TaskList.addTask('Update test cases');
+            showResult('add-result', 'pass', `✓ Added 3 tasks. Total tasks: ${TaskList.tasks.length}`);
+            updateCurrentState();
+        }
+
+        function verifyCookieStorage() {
+            const cookieData = StorageManager.load('productivity-dashboard-tasks');
+            if (cookieData && Array.isArray(cookieData) && cookieData.length > 0) {
+                showResult('verify-result', 'pass', 
+                    `✓ Cookie storage verified!<br>` +
+                    `Storage key: 'productivity-dashboard-tasks'<br>` +
+                    `Tasks in cookie: ${cookieData.length}<br>` +
+                    `<div class="code">${JSON.stringify(cookieData, null, 2)}</div>`
+                );
+            } else {
+                showResult('verify-result', 'fail', '✗ No tasks found in cookie storage');
+            }
+        }
+
+        function testEmptyStorage() {
+            StorageManager.remove('productivity-dashboard-tasks');
+            TaskList.loadTasks();
+            
+            if (Array.isArray(TaskList.tasks) && TaskList.tasks.length === 0) {
+                showResult('empty-result', 'pass', 
+                    '✓ Empty storage handled correctly<br>' +
+                    'TaskList.tasks initialized as empty array: []'
+                );
+            } else {
+                showResult('empty-result', 'fail', 
+                    '✗ Empty storage not handled correctly<br>' +
+                    `TaskList.tasks: ${JSON.stringify(TaskList.tasks)}`
+                );
+            }
+            updateCurrentState();
+        }
+
+        function showResult(elementId, status, message) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="test-result ${status}">${message}</div>`;
+        }
+
+        function updateCurrentState() {
+            const stateDiv = document.getElementById('current-state');
+            const cookieData = StorageManager.load('productivity-dashboard-tasks');
+            
+            stateDiv.innerHTML = `
+                <h3>In-Memory State:</h3>
+                <div class="code">TaskList.tasks = ${JSON.stringify(TaskList.tasks, null, 2)}</div>
+                
+                <h3>Cookie Storage:</h3>
+                <div class="code">
+                    Key: 'productivity-dashboard-tasks'<br>
+                    Value: ${cookieData ? JSON.stringify(cookieData, null, 2) : 'null (empty)'}
+                </div>
+            `;
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            TaskList.loadTasks();
+            updateCurrentState();
+            
+            // Check if we have tasks (indicating a reload test)
+            if (TaskList.tasks.length > 0) {
+                showResult('reload-result', 'pass', 
+                    `✓ Tasks successfully loaded from cookies after page reload!<br>` +
+                    `Loaded ${TaskList.tasks.length} task(s)`
+                );
+            }
+        };
+    </script>
+</body>
+</html>

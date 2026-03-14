@@ -192,7 +192,12 @@ section {
     background-color: var(--hover-color);
 }
 
-.task-checkbox {
+.task-item.completed .task-text {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+.task-item input[type="checkbox"] {
     width: 20px;
     height: 20px;
     cursor: pointer;
@@ -203,25 +208,33 @@ section {
     font-size: 14px;
 }
 
-.task-text.completed {
-    text-decoration: line-through;
-    opacity: 0.6;
-}
-
-.task-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.btn-edit {
-    background-color: var(--primary-color);
-    color: white;
+.task-edit-btn,
+.task-delete-btn {
     padding: 0.5rem 1rem;
     font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.btn-edit:hover {
+.task-edit-btn {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.task-edit-btn:hover {
     background-color: #3a7bc8;
+}
+
+.task-delete-btn {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.task-delete-btn:hover {
+    background-color: #c82333;
 }
 
 /* Links Section */
@@ -249,43 +262,52 @@ section {
 .links-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.75rem;
 }
 
 .link-item {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    background-color: var(--primary-color);
-    color: white;
-    text-decoration: none;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background-color: var(--hover-color);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
-    font-size: 14px;
     transition: all 0.2s ease;
 }
 
 .link-item:hover {
-    background-color: #3a7bc8;
+    background-color: #e0e3e7;
     transform: translateY(-1px);
 }
 
-.link-delete {
-    background-color: transparent;
-    color: white;
-    border: none;
-    cursor: pointer;
-    font-size: 18px;
-    padding: 0;
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.link-btn {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.2s ease;
 }
 
-.link-delete:hover {
-    opacity: 0.8;
+.link-btn:hover {
+    color: #3a7bc8;
+    text-decoration: underline;
+}
+
+.link-delete-btn {
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.link-delete-btn:hover {
+    background-color: #c82333;
 }
 
 /* Responsive Design */

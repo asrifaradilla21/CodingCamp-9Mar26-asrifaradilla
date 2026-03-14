@@ -19,6 +19,256 @@
         .pass {
             background-color: #d4edda;
             color: #155724;
+            border: 1px solid #c3e6cb;
         }
         .fail {
-            background-col
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        #results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>StorageManager Cookie-Based Tests</h1>
+    <div id="results"></div>
+
+    <script>
+        // Copy the StorageManager implementation here for testing
+        const StorageManager = {
+            setCookie(name, value, days = 365) {
+                try {
+                    const encodedValue = encodeURIComponent(value);
+                    const date = new Date();
+                    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                    const expires = `expires=${date.toUTCString()}`;
+                    document.cookie = `${name}=${encodedValue}; ${expires}; path=/; SameSite=Strict`;
+                } catch (error) {
+                    console.error('Failed to set cookie:', error);
+                }
+            },
+
+            getCookie(name) {
+                try {
+                    const nameEQ = name + "=";
+                    const cookies = document.cookie.split(';');
+                    
+                    for (let i = 0; i < cookies.length; i++) {
+                        let cookie = cookies[i];
+                        while (cookie.charAt(0) === ' ') {
+                            cookie = cookie.substring(1);
+                        }
+                        if (cookie.indexOf(nameEQ) === 0) {
+                            const value = cookie.substring(nameEQ.length);
+                            return decodeURIComponent(value);
+                        }
+                    }
+                    return null;
+                } catch (error) {
+                    console.error('Failed to get cookie:', error);
+                    return null;
+                }
+            },
+
+            deleteCookie(name) {
+                try {
+                    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict`;
+                } catch (error) {
+                    console.error('Failed to delete cookie:', error);
+                }
+            },
+
+            save(key, data) {
+                try {
+                    const serialized = JSON.stringify(data);
+                    
+                    if (serialized.length > 4096) {
+                        console.error('Cookie size exceeded (4KB limit). Unable to save data.');
+                        return;
+                    }
+                    
+                    this.setCookie(key, serialized);
+                } catch (error) {
+                    if (error.name === 'SecurityError') {
+                        console.error('Cookies are unavailable. Data will not persist.');
+                    } else {
+                        console.error('Failed to save data to cookies:', error);
+                    }
+                }
+            },
+
+            load(key) {
+                try {
+                    const serialized = this.getCookie(key);
+                    if (serialized === null) {
+                        return null;
+                    }
+                    return JSON.parse(serialized);
+                } catch (error) {
+                    if (error instanceof SyntaxError) {
+                        console.error('Corrupted data found in cookie. Clearing key:', key);
+                        this.remove(key);
+                        return null;
+                    } else if (error.name === 'SecurityError') {
+                        console.error('Cookies are unavailable. Cannot load data.');
+                        return null;
+                    } else {
+                        console.error('Failed to load data from cookies:', error);
+                        return null;
+                    }
+                }
+            },
+
+            remove(key) {
+                this.deleteCookie(key);
+            }
+        };
+
+        // Test runner
+        const results = document.getElementById('results');
+        let testCount = 0;
+        let passCount = 0;
+
+        function addResult(testName, passed, message = '') {
+            testCount++;
+            if (passed) passCount++;
+            
+            const div = document.createElement('div');
+            div.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            div.textContent = `${passed ? '✓' : '✗'} ${testName}${message ? ': ' + message : ''}`;
+            results.appendChild(div);
+        }
+
+        function addHeader(text) {
+            const h2 = document.createElement('h2');
+            h2.textContent = text;
+            results.appendChild(h2);
+        }
+
+        // Run tests
+        function runTests() {
+            // Clear all cookies first
+            document.cookie.split(";").forEach(function(c) { 
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+            });
+
+            addHeader('setCookie() and getCookie() Tests');
+            
+            // Test 1: Basic set and get
+            StorageManager.setCookie('test1', 'value1');
+            const val1 = StorageManager.getCookie('test1');
+            addResult('Basic set and get cookie', val1 === 'value1');
+
+            // Test 2: Special characters
+            StorageManager.setCookie('test2', 'value with spaces & symbols!');
+            const val2 = StorageManager.getCookie('test2');
+            addResult('Handle special characters', val2 === 'value with spaces & symbols!');
+
+            // Test 3: Non-existent cookie
+            const val3 = StorageManager.getCookie('non-existent');
+            addResult('Return null for non-existent cookie', val3 === null);
+
+            addHeader('deleteCookie() Tests');
+
+            // Test 4: Delete cookie
+            StorageManager.setCookie('test4', 'delete-me');
+            StorageManager.deleteCookie('test4');
+            const val4 = StorageManager.getCookie('test4');
+            addResult('Delete cookie', val4 === null);
+
+            addHeader('save() and load() Tests');
+
+            // Test 5: Save and load object
+            const obj = { id: '123', text: 'Test task', completed: false };
+            StorageManager.save('test-obj', obj);
+            const loadedObj = StorageManager.load('test-obj');
+            addResult('Save and load object', 
+                JSON.stringify(loadedObj) === JSON.stringify(obj));
+
+            // Test 6: Save and load array
+            const arr = [{ id: '1', text: 'Task 1' }, { id: '2', text: 'Task 2' }];
+            StorageManager.save('test-arr', arr);
+            const loadedArr = StorageManager.load('test-arr');
+            addResult('Save and load array', 
+                JSON.stringify(loadedArr) === JSON.stringify(arr));
+
+            // Test 7: Load non-existent key
+            const val7 = StorageManager.load('non-existent-key');
+            addResult('Load non-existent key returns null', val7 === null);
+
+            // Test 8: Save empty array
+            StorageManager.save('empty-arr', []);
+            const emptyArr = StorageManager.load('empty-arr');
+            addResult('Save and load empty array', 
+                Array.isArray(emptyArr) && emptyArr.length === 0);
+
+            addHeader('remove() Tests');
+
+            // Test 9: Remove data
+            StorageManager.save('test-remove', { data: 'test' });
+            StorageManager.remove('test-remove');
+            const val9 = StorageManager.load('test-remove');
+            addResult('Remove data', val9 === null);
+
+            addHeader('Error Handling Tests');
+
+            // Test 10: Cookie size limit
+            const largeData = 'x'.repeat(5000);
+            const consoleSpy = console.error;
+            let errorCalled = false;
+            console.error = function(...args) {
+                if (args[0].includes('Cookie size exceeded')) {
+                    errorCalled = true;
+                }
+                consoleSpy.apply(console, args);
+            };
+            StorageManager.save('large-data', largeData);
+            console.error = consoleSpy;
+            addResult('Handle cookie size exceeded', errorCalled);
+
+            // Test 11: Corrupted data
+            StorageManager.setCookie('corrupted', 'invalid json {{{');
+            const corrupted = StorageManager.load('corrupted');
+            addResult('Handle corrupted data gracefully', corrupted === null);
+
+            addHeader('Integration Tests');
+
+            // Test 12: Save-load-remove cycle
+            const cycleData = { id: '999', text: 'Cycle test' };
+            StorageManager.save('cycle', cycleData);
+            const cycleLoaded = StorageManager.load('cycle');
+            const cycleMatch = JSON.stringify(cycleLoaded) === JSON.stringify(cycleData);
+            StorageManager.remove('cycle');
+            const cycleRemoved = StorageManager.load('cycle') === null;
+            addResult('Complete save-load-remove cycle', cycleMatch && cycleRemoved);
+
+            // Test 13: Multiple cookies
+            StorageManager.setCookie('multi1', 'value1');
+            StorageManager.setCookie('multi2', 'value2');
+            StorageManager.setCookie('multi3', 'value3');
+            const multi1 = StorageManager.getCookie('multi1') === 'value1';
+            const multi2 = StorageManager.getCookie('multi2') === 'value2';
+            const multi3 = StorageManager.getCookie('multi3') === 'value3';
+            addResult('Handle multiple cookies', multi1 && multi2 && multi3);
+
+            // Summary
+            const summary = document.createElement('h2');
+            summary.textContent = `Test Summary: ${passCount}/${testCount} tests passed`;
+            summary.style.color = passCount === testCount ? '#155724' : '#721c24';
+            results.appendChild(summary);
+        }
+
+        // Run tests when page loads
+        runTests();
+    </script>
+</body>
+</html>
