@@ -1,0 +1,23 @@
+{
+  "name": "productivity-dashboard",
+  "version": "1.0.0",
+  "description": "A minimal productivity dashboard with timer, tasks, and quick links",
+  "scripts": {
+    "test": "jest --run",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "js/**/*.js"
+    ]
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
+}
